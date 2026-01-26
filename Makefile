@@ -1,68 +1,104 @@
-# List of all library subdirectories
-LIBS = vector
+CC = gcc
+CFLAGS = -Wall -Wextra -Werror -pedantic -std=c99
+DEBUG_FLAGS = -g -DDEBUG
+RELEASE_FLAGS = -O2 -DNDEBUG
 
-.PHONY: all clean test debug release help $(LIBS)
+# Check framework flags
+# Try pkg-config first, fall back to Homebrew paths
+CHECK_PREFIX := $(shell brew --prefix check 2>/dev/null)
+ifdef CHECK_PREFIX
+    CHECK_CFLAGS ?= -I$(CHECK_PREFIX)/include
+    CHECK_LIBS ?= -L$(CHECK_PREFIX)/lib -lcheck -pthread
+else
+    CHECK_CFLAGS = $(shell pkg-config --cflags check)
+    CHECK_LIBS = $(shell pkg-config --libs check)
+endif
 
-all: $(LIBS)
+SRC_DIR = src
+INC_DIR = include
+BUILD_DIR = build
+TEST_DIR = tests
 
-$(LIBS):
-	@echo "Building $@..."
-	@$(MAKE) -C $@
+# Source files
+SRCS = $(wildcard $(SRC_DIR)/*.c)
+OBJS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
-debug:
-	@for lib in $(LIBS); do \
-		echo "Building $$lib (debug)..."; \
-		$(MAKE) -C $$lib debug || exit 1; \
-	done
+# Test files
+TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
+TEST_OBJS = $(patsubst $(TEST_DIR)/%.c,$(BUILD_DIR)/test_%.o,$(TEST_SRCS))
+TEST_BIN = $(BUILD_DIR)/test_runner
 
-release:
-	@for lib in $(LIBS); do \
-		echo "Building $$lib (release)..."; \
-		$(MAKE) -C $$lib release || exit 1; \
-	done
+LIB_NAME = libstdlib.a
 
-test:
-	@for lib in $(LIBS); do \
-		echo "Testing $$lib..."; \
-		$(MAKE) -C $$lib test || exit 1; \
-	done
+.PHONY: all clean debug release test dirs help compile_commands
+
+all: dirs release
+
+dirs:
+	@mkdir -p $(BUILD_DIR) $(SRC_DIR) $(INC_DIR) $(TEST_DIR)
+
+debug: CFLAGS += $(DEBUG_FLAGS)
+debug: dirs $(BUILD_DIR)/$(LIB_NAME)
+
+release: CFLAGS += $(RELEASE_FLAGS)
+release: dirs $(BUILD_DIR)/$(LIB_NAME)
+
+# Build static library
+$(BUILD_DIR)/$(LIB_NAME): $(OBJS)
+	ar rcs $@ $^
+
+# Compile source files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) -I$(INC_DIR) -c $< -o $@
+
+# Build and run tests
+test: CFLAGS += $(DEBUG_FLAGS)
+test: dirs $(TEST_BIN)
+	@echo "Running tests..."
+	@./$(TEST_BIN)
+
+# Compile test files (relax -pedantic for Check's GNU extensions)
+$(BUILD_DIR)/test_%.o: $(TEST_DIR)/%.c
+	$(CC) $(CFLAGS) $(CHECK_CFLAGS) -Wno-gnu-zero-variadic-macro-arguments -I$(INC_DIR) -c $< -o $@
+
+# Link test runner
+$(TEST_BIN): $(TEST_OBJS) $(OBJS)
+	$(CC) $(CFLAGS) $^ $(CHECK_LIBS) -o $@
 
 clean:
-	@for lib in $(LIBS); do \
-		echo "Cleaning $$lib..."; \
-		$(MAKE) -C $$lib clean; \
+	rm -rf $(BUILD_DIR)
+
+# Generate compile_commands.json for LSP support
+compile_commands:
+	@echo '[' > compile_commands.json
+	@first=1; \
+	for src in $(SRCS); do \
+		[ $$first -eq 0 ] && echo ',' >> compile_commands.json; \
+		first=0; \
+		echo '  {"directory": "$(CURDIR)", "file": "'$$src'", "command": "$(CC) $(CFLAGS) -I$(INC_DIR) -c '$$src'"}' >> compile_commands.json; \
+	done; \
+	for src in $(TEST_SRCS); do \
+		echo ',' >> compile_commands.json; \
+		echo '  {"directory": "$(CURDIR)", "file": "'$$src'", "command": "$(CC) $(CFLAGS) $(CHECK_CFLAGS) -Wno-gnu-zero-variadic-macro-arguments -I$(INC_DIR) -c '$$src'"}' >> compile_commands.json; \
 	done
-
-# Build specific library: make lib-<name>
-lib-%:
-	@$(MAKE) -C $*
-
-# Test specific library: make test-<name>
-test-%:
-	@$(MAKE) -C $* test
-
-# Clean specific library: make clean-<name>
-clean-%:
-	@$(MAKE) -C $* clean
-
-# Debug specific library: make debug-<name>
-debug-%:
-	@$(MAKE) -C $* debug
+	@echo ']' >> compile_commands.json
+	@echo "Generated compile_commands.json"
 
 help:
-	@echo "stdlib Master Makefile"
+	@echo "stdlib Makefile"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  all            - Build all libraries (default)"
-	@echo "  debug          - Build all libraries with debug symbols"
-	@echo "  release        - Build all libraries optimized"
-	@echo "  test           - Run tests for all libraries"
-	@echo "  clean          - Clean all libraries"
+	@echo "  all      - Build release version (default)"
+	@echo "  debug    - Build with debug symbols"
+	@echo "  release  - Build optimized version"
+	@echo "  test     - Build and run tests (requires Check framework)"
+	@echo "  clean    - Remove build artifacts"
+	@echo "  dirs     - Create project directories"
+	@echo "  help     - Show this message"
 	@echo ""
-	@echo "Per-library targets:"
-	@echo "  lib-<name>     - Build specific library (e.g., make lib-vector)"
-	@echo "  test-<name>    - Test specific library (e.g., make test-vector)"
-	@echo "  clean-<name>   - Clean specific library (e.g., make clean-vector)"
-	@echo "  debug-<name>   - Debug build specific library"
+	@echo "Prerequisites:"
+	@echo "  brew install check    (macOS)"
+	@echo "  apt install check     (Debian/Ubuntu)"
 	@echo ""
-	@echo "Available libraries: $(LIBS)"
+	@echo "Editor support:"
+	@echo "  make compile_commands - Generate compile_commands.json for LSP"

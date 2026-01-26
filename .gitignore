@@ -9,3 +9,4 @@ core
 vgcore.*
 
 *.out
+compile_commands.json

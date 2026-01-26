@@ -1,0 +1,6 @@
+CompileFlags:
+  Add:
+    - "-I/opt/homebrew/opt/check/include"
+    - "-Iinclude"
+    - "-std=c99"
+    - "-Wno-gnu-zero-variadic-macro-arguments"
