@@ -4,6 +4,7 @@
 /* Import test suites */
 Suite *vector_suite(void);
 Suite *hash_suite(void);
+Suite *unordered_set_suite(void);
 
 int main(void) {
 	int failed;
@@ -11,6 +12,7 @@ int main(void) {
 
 	sr = srunner_create(vector_suite());
 	srunner_add_suite(sr, hash_suite());
+	srunner_add_suite(sr, unordered_set_suite());
 
 	srunner_run_all(sr, CK_NORMAL);
 	failed = srunner_ntests_failed(sr);
