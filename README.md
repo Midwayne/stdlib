@@ -28,16 +28,22 @@ Tests use the [Check](https://libcheck.github.io/check/) unit testing framework.
 
 ```bash
 # macOS
-brew install check
+brew install check clang-format
 
 # Debian/Ubuntu
-sudo apt install check
+sudo apt install check clang-format
 ```
 
 ### Running Tests
 
 ```bash
 make test
+```
+
+### Running the Formatter 
+
+```bash
+make format
 ```
 
 ## Editor Support

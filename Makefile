@@ -32,10 +32,16 @@ LIB_NAME = libstdlib.a
 
 .PHONY: all clean debug release test dirs help compile_commands
 
-all: dirs release
+all: dirs format release
 
 dirs:
 	@mkdir -p $(BUILD_DIR) $(SRC_DIR) $(INC_DIR) $(TEST_DIR)
+
+# Format source files before building
+format:
+	@command -v clang-format >/dev/null 2>&1 || { echo >&2 "clang-format is not installed. Skipping formatting."; exit 0; }
+	@echo "Formatting C sources with clang-format..."
+	@find $(SRC_DIR) $(INC_DIR) $(TEST_DIR) -type f \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format -i || true
 
 debug: CFLAGS += $(DEBUG_FLAGS)
 debug: dirs $(BUILD_DIR)/$(LIB_NAME)
