@@ -128,14 +128,51 @@ bool unordered_set_insert(UnorderedSet* set, const void* key) {
     return true;
 }
 
+void unordered_set_erase(UnorderedSet* set, const void* key) {
+    UNORDERED_SET_ASSERT(set != NULL || set->size != 0, "set is empty");
+    size_t hash = set->hash_func(key);
+    size_t idx = hash % set->bucket_count;
+
+    SetNode* current = set->buckets[idx];
+    SetNode* prev = NULL;
+
+    while (current != NULL) {
+        if (set->key_compare(current->key, key)) {
+            if (prev == NULL) {
+                set->buckets[idx] = current->next;
+            } else {
+                prev->next = current->next;
+            }
+
+            free(current->key);
+            free(current);
+            set->size--;
+            return;
+        }
+
+        prev = current;
+        current = current->next;
+    }
+}
+
 /* ============================================================
  * Access
  * ============================================================
  */
 
-// TODO
 bool unordered_set_contains(UnorderedSet* set, const void* key) {
-    fprintf(stdout, "%zu", set->size);
-    fprintf(stdout, "%p", key);
-    return true;
+    if (set == NULL || set->size == 0) return false;
+
+    size_t hash = set->hash_func(key);
+    size_t index = hash % set->bucket_count;
+
+    SetNode* current = set->buckets[index];
+    while (current != NULL) {
+        if (set->key_compare(current->key, key)) {
+            return true;
+        }
+        current = current->next;
+    }
+
+    return false;
 }
