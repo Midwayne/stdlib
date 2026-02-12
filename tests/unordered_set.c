@@ -125,6 +125,31 @@ START_TEST(test_unordered_set_erase) {
 }
 END_TEST
 
+START_TEST(test_unordered_set_clear) {
+    UnorderedSet set;
+    unordered_set_init(&set, sizeof(int), hash_int, int_compare);
+
+    int v1 = 10, v2 = 20, v3 = 30;
+    unordered_set_insert(&set, &v1);
+    unordered_set_insert(&set, &v2);
+    unordered_set_insert(&set, &v3);
+
+    ck_assert_uint_eq(set.size, 3);
+
+    unordered_set_clear(&set);
+
+    ck_assert_uint_eq(set.size, 0);
+    ck_assert(unordered_set_is_empty(&set));
+    ck_assert(!unordered_set_contains(&set, &v1));
+
+    unordered_set_insert(&set, &v1);
+    ck_assert_uint_eq(set.size, 1);
+    ck_assert(unordered_set_contains(&set, &v1));
+
+    unordered_set_free(&set);
+}
+END_TEST
+
 /* ============================================================
  * Access suite
  * ============================================================
@@ -170,6 +195,7 @@ Suite* unordered_set_suite(void) {
     tcase_add_test(tc_modifiers, test_unordered_set_insert);
     tcase_add_test(tc_modifiers, test_unordered_set_resize);
     tcase_add_test(tc_modifiers, test_unordered_set_erase);
+    tcase_add_test(tc_modifiers, test_unordered_set_clear);
     suite_add_tcase(s, tc_modifiers);
 
     /* Access test case */

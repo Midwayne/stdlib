@@ -40,20 +40,12 @@ void unordered_set_init(UnorderedSet* set, size_t key_size, HashFunc hf, KeyComp
 void unordered_set_free(UnorderedSet* set) {
     if (set == NULL) return;
 
+    unordered_set_clear(set);
+
     if (set->buckets != NULL) {
-        for (size_t i = 0; i < set->bucket_count; i++) {
-            SetNode* current = set->buckets[i];
-            while (current != NULL) {
-                SetNode* next = current->next;
-                if (current->key) free(current->key);
-                free(current);
-                current = next;
-            }
-        }
         free(set->buckets);
         set->buckets = NULL;
     }
-    set->size = 0;
     set->bucket_count = 0;
 }
 
@@ -153,6 +145,29 @@ void unordered_set_erase(UnorderedSet* set, const void* key) {
         prev = current;
         current = current->next;
     }
+}
+
+void unordered_set_clear(UnorderedSet* set) {
+    if (set == NULL || set->buckets == NULL) return;
+
+    for (size_t i = 0; i < set->bucket_count; i++) {
+        SetNode* current = set->buckets[i];
+
+        while (current != NULL) {
+            SetNode* next = current->next;
+
+            if (current->key) {
+                free(current->key);
+            }
+            free(current);
+
+            current = next;
+        }
+
+        set->buckets[i] = NULL;
+    }
+
+    set->size = 0;
 }
 
 /* ============================================================
